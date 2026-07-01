@@ -658,7 +658,6 @@
 
           <div class="filters" id="categoryFilters" aria-label="Фильтры категорий"></div>
           <p class="help-text hidden" id="backendNotice" style="margin:0;"></p>
-          <p class="help-text hidden" id="adminNotice" style="margin:0;"></p>
         </div>
       </div>
     </header>
@@ -802,7 +801,6 @@
       activeRecipeId: null,
       addMode: "auth",
       loaded: false,
-      adminUnlocked: sessionStorage.getItem("recipes-admin") === "1",
       pendingAdminAction: null,
       editingRecipeId: null
     };
@@ -836,7 +834,6 @@
       recipeSteps: document.getElementById("recipeSteps"),
       recipePhoto: document.getElementById("recipePhoto"),
       backendNotice: document.getElementById("backendNotice"),
-      adminNotice: document.getElementById("adminNotice"),
       recipeSubmitBtn: document.getElementById("recipeSubmitBtn")
     };
 
@@ -873,24 +870,6 @@
 
       elements.backendNotice.textContent = "Подключите Supabase URL и anon key в коде, чтобы рецепты были общими для всех посетителей.";
       elements.backendNotice.classList.remove("hidden");
-    }
-
-    function updateAdminNotice() {
-      if (!state.adminUnlocked) {
-        elements.adminNotice.classList.add("hidden");
-        elements.adminNotice.textContent = "";
-        return;
-      }
-
-      elements.adminNotice.textContent = "Режим администратора включён в этой сессии.";
-      elements.adminNotice.classList.remove("hidden");
-    }
-
-    function setAdminUnlocked(value) {
-      state.adminUnlocked = value;
-      sessionStorage.setItem("recipes-admin", value ? "1" : "0");
-      updateAdminNotice();
-      renderRecipes();
     }
 
     function getRecipeById(recipeId) {
@@ -1106,14 +1085,12 @@
         const media = recipe.photoDataUrl
           ? `<img class="recipe-image" src="${recipe.photoDataUrl}" alt="${recipe.title}">`
           : createPlaceholderMarkup(recipe.title);
-        const adminButtons = state.adminUnlocked
-          ? `
-            <div class="admin-actions">
-              <button type="button" class="edit-btn" data-edit="${recipe.id}">Редактировать</button>
-              <button type="button" class="delete-btn" data-delete="${recipe.id}">Удалить</button>
-            </div>
-          `
-          : "";
+        const adminButtons = `
+          <div class="admin-actions">
+            <button type="button" class="edit-btn" data-edit="${recipe.id}">Редактировать</button>
+            <button type="button" class="delete-btn" data-delete="${recipe.id}">Удалить</button>
+          </div>
+        `;
 
         return `
           <article class="recipe-card" tabindex="0" role="button" aria-label="Открыть рецепт ${recipe.title}" data-id="${recipe.id}">
@@ -1293,11 +1270,6 @@
     }
 
     function openProtectedAction(action) {
-      if (state.adminUnlocked) {
-        executeProtectedAction(action);
-        return;
-      }
-
       state.pendingAdminAction = action;
       resetAddFlow();
       openModal(elements.addModal);
@@ -1349,7 +1321,6 @@
       }
 
       elements.authError.textContent = "";
-      setAdminUnlocked(true);
 
       const action = state.pendingAdminAction || { type: "add" };
       state.pendingAdminAction = null;
@@ -1480,7 +1451,6 @@
     function init() {
       // Загружаем сохранённые рецепты и строим интерфейс.
       updateBackendNotice();
-      updateAdminNotice();
       loadRecipes().then((recipes) => {
         state.recipes = recipes;
         state.loaded = true;
