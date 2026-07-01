@@ -299,7 +299,10 @@
     .card-actions {
       margin-top: auto;
       display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
       justify-content: flex-end;
+      align-items: center;
     }
 
     .view-btn {
@@ -314,6 +317,38 @@
     .view-btn:hover {
       border-color: rgba(127, 138, 99, 0.35);
       background: var(--surface-alt);
+      transform: translateY(-1px);
+    }
+
+    .admin-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .edit-btn,
+    .delete-btn {
+      border-radius: 999px;
+      padding: 10px 14px;
+      border: 1px solid transparent;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
+    }
+
+    .edit-btn {
+      background: #f3efe7;
+      color: var(--text);
+      border-color: #e1d8cb;
+    }
+
+    .delete-btn {
+      background: #fbefee;
+      color: var(--danger);
+      border-color: rgba(180, 83, 76, 0.18);
+    }
+
+    .edit-btn:hover,
+    .delete-btn:hover {
       transform: translateY(-1px);
     }
 
@@ -623,6 +658,7 @@
 
           <div class="filters" id="categoryFilters" aria-label="Фильтры категорий"></div>
           <p class="help-text hidden" id="backendNotice" style="margin:0;"></p>
+          <p class="help-text hidden" id="adminNotice" style="margin:0;"></p>
         </div>
       </div>
     </header>
@@ -733,7 +769,7 @@
 
           <div class="form-actions">
             <button class="btn-secondary" type="button" data-close="addModal">Отмена</button>
-            <button class="btn-primary" type="submit">Сохранить рецепт</button>
+            <button class="btn-primary" id="recipeSubmitBtn" type="submit">Сохранить рецепт</button>
           </div>
         </form>
       </div>
@@ -765,7 +801,10 @@
       category: "Все",
       activeRecipeId: null,
       addMode: "auth",
-      loaded: false
+      loaded: false,
+      adminUnlocked: sessionStorage.getItem("recipes-admin") === "1",
+      pendingAdminAction: null,
+      editingRecipeId: null
     };
 
     const elements = {
@@ -796,7 +835,9 @@
       recipeIngredients: document.getElementById("recipeIngredients"),
       recipeSteps: document.getElementById("recipeSteps"),
       recipePhoto: document.getElementById("recipePhoto"),
-      backendNotice: document.getElementById("backendNotice")
+      backendNotice: document.getElementById("backendNotice"),
+      adminNotice: document.getElementById("adminNotice"),
+      recipeSubmitBtn: document.getElementById("recipeSubmitBtn")
     };
 
     function supabaseHeaders(extraHeaders = {}) {
@@ -832,6 +873,28 @@
 
       elements.backendNotice.textContent = "Подключите Supabase URL и anon key в коде, чтобы рецепты были общими для всех посетителей.";
       elements.backendNotice.classList.remove("hidden");
+    }
+
+    function updateAdminNotice() {
+      if (!state.adminUnlocked) {
+        elements.adminNotice.classList.add("hidden");
+        elements.adminNotice.textContent = "";
+        return;
+      }
+
+      elements.adminNotice.textContent = "Режим администратора включён в этой сессии.";
+      elements.adminNotice.classList.remove("hidden");
+    }
+
+    function setAdminUnlocked(value) {
+      state.adminUnlocked = value;
+      sessionStorage.setItem("recipes-admin", value ? "1" : "0");
+      updateAdminNotice();
+      renderRecipes();
+    }
+
+    function getRecipeById(recipeId) {
+      return state.recipes.find((item) => item.id === recipeId);
     }
 
     async function loadRecipes() {
@@ -875,6 +938,57 @@
       }
 
       return [recipe, ...currentRecipes];
+    }
+
+    async function updateRecipe(recipe, currentRecipes) {
+      if (!API_ENABLED) {
+        const next = currentRecipes.map((item) => (item.id === recipe.id ? recipe : item));
+        saveLocalRecipes(next);
+        return next;
+      }
+
+      const response = await fetch(`${API_URL}?id=eq.${encodeURIComponent(recipe.id)}`, {
+        method: "PATCH",
+        headers: supabaseHeaders(),
+        body: JSON.stringify({
+          title: recipe.title,
+          category: recipe.category,
+          description: recipe.description,
+          time: recipe.time,
+          ingredients: recipe.ingredients,
+          steps: recipe.steps,
+          photo_data_url: recipe.photoDataUrl || ""
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const next = currentRecipes.map((item) => (item.id === recipe.id ? recipe : item));
+      saveLocalRecipes(next);
+      return next;
+    }
+
+    async function deleteRecipe(recipeId, currentRecipes) {
+      if (!API_ENABLED) {
+        const next = currentRecipes.filter((item) => item.id !== recipeId);
+        saveLocalRecipes(next);
+        return next;
+      }
+
+      const response = await fetch(`${API_URL}?id=eq.${encodeURIComponent(recipeId)}`, {
+        method: "DELETE",
+        headers: supabaseHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const next = currentRecipes.filter((item) => item.id !== recipeId);
+      saveLocalRecipes(next);
+      return next;
     }
 
     function normalizeRecipeRow(row) {
@@ -992,6 +1106,14 @@
         const media = recipe.photoDataUrl
           ? `<img class="recipe-image" src="${recipe.photoDataUrl}" alt="${recipe.title}">`
           : createPlaceholderMarkup(recipe.title);
+        const adminButtons = state.adminUnlocked
+          ? `
+            <div class="admin-actions">
+              <button type="button" class="edit-btn" data-edit="${recipe.id}">Редактировать</button>
+              <button type="button" class="delete-btn" data-delete="${recipe.id}">Удалить</button>
+            </div>
+          `
+          : "";
 
         return `
           <article class="recipe-card" tabindex="0" role="button" aria-label="Открыть рецепт ${recipe.title}" data-id="${recipe.id}">
@@ -1008,6 +1130,7 @@
               </div>
               <div class="card-actions">
                 <button type="button" class="view-btn" data-view="${recipe.id}">Смотреть</button>
+                ${adminButtons}
               </div>
             </div>
           </article>
@@ -1044,10 +1167,12 @@
     function resetAddFlow() {
       // Возвращаем модальное окно добавления в исходное состояние.
       state.addMode = "auth";
+      state.editingRecipeId = null;
       elements.authForm.classList.remove("hidden");
       elements.recipeForm.classList.add("hidden");
       elements.addModalTitle.textContent = "Введите пароль";
       elements.addModalSubtitle.textContent = "Доступ к добавлению защищён паролем";
+      elements.recipeSubmitBtn.textContent = "Сохранить рецепт";
       elements.authError.textContent = "";
       elements.recipeError.textContent = "";
       elements.passwordInput.value = "";
@@ -1085,10 +1210,7 @@
     }
 
     function openAddModal() {
-      // Перед открытием формы всегда показываем экран пароля.
-      resetAddFlow();
-      openModal(elements.addModal);
-      setTimeout(() => elements.passwordInput.focus(), 0);
+      openProtectedAction({ type: "add" });
     }
 
     async function readFileAsDataUrl(file) {
@@ -1107,15 +1229,31 @@
       elements.recipeForm.classList.remove("hidden");
       elements.addModalTitle.textContent = "Новый рецепт";
       elements.addModalSubtitle.textContent = "Заполните поля и сохраните карточку в общем хранилище";
+      elements.recipeSubmitBtn.textContent = "Сохранить рецепт";
       elements.recipeError.textContent = "";
       setTimeout(() => elements.recipeName.focus(), 0);
     }
 
-    async function handleRecipeSubmit(event) {
-      event.preventDefault();
+    function activateEditForm(recipe) {
+      state.addMode = "form";
+      state.editingRecipeId = recipe.id;
+      elements.authForm.classList.add("hidden");
+      elements.recipeForm.classList.remove("hidden");
+      elements.addModalTitle.textContent = "Редактировать рецепт";
+      elements.addModalSubtitle.textContent = "Внесите изменения и сохраните обновлённую карточку";
+      elements.recipeSubmitBtn.textContent = "Сохранить изменения";
+      elements.recipeName.value = recipe.title;
+      elements.recipeCategory.value = recipe.category;
+      elements.recipeDescription.value = recipe.description;
+      elements.recipeTime.value = recipe.time;
+      elements.recipeIngredients.value = (recipe.ingredients || []).join("\n");
+      elements.recipeSteps.value = (recipe.steps || []).join("\n");
+      elements.recipePhoto.value = "";
       elements.recipeError.textContent = "";
+      setTimeout(() => elements.recipeName.focus(), 0);
+    }
 
-      // Считываем данные формы и превращаем многострочные поля в массивы.
+    async function buildRecipeFromForm(existingRecipe = null) {
       const title = elements.recipeName.value.trim();
       const category = elements.recipeCategory.value;
       const description = elements.recipeDescription.value.trim();
@@ -1125,48 +1263,123 @@
       const file = elements.recipePhoto.files && elements.recipePhoto.files[0];
 
       if (!ingredients.length || !steps.length) {
-        elements.recipeError.textContent = "Добавьте хотя бы один ингредиент и один шаг.";
-        return;
+        throw new Error("Добавьте хотя бы один ингредиент и один шаг.");
       }
 
-      let photoDataUrl = "";
+      let photoDataUrl = existingRecipe ? existingRecipe.photoDataUrl || "" : "";
       if (file) {
         if (!file.type.startsWith("image/")) {
-          elements.recipeError.textContent = "Выберите файл изображения.";
-          return;
+          throw new Error("Выберите файл изображения.");
         }
 
         try {
           photoDataUrl = await readFileAsDataUrl(file);
         } catch (error) {
-          elements.recipeError.textContent = "Не удалось загрузить фото.";
-          return;
+          throw new Error("Не удалось загрузить фото.");
         }
       }
 
-      const recipe = {
-        id: makeId(),
+      return {
+        id: existingRecipe ? existingRecipe.id : makeId(),
         title,
         category,
         description,
         time,
         ingredients,
         steps,
-        photoDataUrl
+        photoDataUrl,
+        createdAt: existingRecipe ? existingRecipe.createdAt || existingRecipe.created_at || "" : new Date().toISOString()
       };
+    }
 
-      const nextRecipes = [recipe, ...state.recipes];
+    function openProtectedAction(action) {
+      if (state.adminUnlocked) {
+        executeProtectedAction(action);
+        return;
+      }
+
+      state.pendingAdminAction = action;
+      resetAddFlow();
+      openModal(elements.addModal);
+      setTimeout(() => elements.passwordInput.focus(), 0);
+    }
+
+    function executeProtectedAction(action) {
+      if (action.type === "add") {
+        resetAddFlow();
+        openModal(elements.addModal);
+        activateAddForm();
+        return;
+      }
+
+      if (action.type === "edit") {
+        const recipe = getRecipeById(action.recipeId);
+        if (!recipe) return;
+        resetAddFlow();
+        openModal(elements.addModal);
+        activateEditForm(recipe);
+        return;
+      }
+
+      if (action.type === "delete") {
+        const recipe = getRecipeById(action.recipeId);
+        if (!recipe) return;
+        const confirmed = window.confirm(`Удалить рецепт «${recipe.title}»? Это действие нельзя отменить.`);
+        if (!confirmed) return;
+        performDeleteRecipe(recipe.id);
+      }
+    }
+
+    async function performDeleteRecipe(recipeId) {
+      try {
+        state.recipes = await deleteRecipe(recipeId, state.recipes);
+        renderFilters();
+        renderRecipes();
+      } catch (error) {
+        console.warn("Ошибка удаления рецепта:", error);
+        alert("Не удалось удалить рецепт.");
+      }
+    }
+
+    function handleAuthSubmit(event) {
+      event.preventDefault();
+      if (elements.passwordInput.value !== ACCESS_PASSWORD) {
+        elements.authError.textContent = "Неверный пароль. Попробуйте ещё раз.";
+        return;
+      }
+
+      elements.authError.textContent = "";
+      setAdminUnlocked(true);
+
+      const action = state.pendingAdminAction || { type: "add" };
+      state.pendingAdminAction = null;
+      closeModal(elements.addModal);
+      resetAddFlow();
+      executeProtectedAction(action);
+    }
+
+    async function handleRecipeSubmit(event) {
+      event.preventDefault();
+      elements.recipeError.textContent = "";
+
+      const existingRecipe = state.editingRecipeId ? getRecipeById(state.editingRecipeId) : null;
 
       try {
-        const savedRecipes = await saveRecipe(recipe, state.recipes);
-        state.recipes = savedRecipes || nextRecipes;
+        const recipe = await buildRecipeFromForm(existingRecipe);
+
+        if (existingRecipe) {
+          state.recipes = await updateRecipe(recipe, state.recipes);
+        } else {
+          state.recipes = await saveRecipe(recipe, state.recipes);
+        }
+
         saveLocalRecipes(state.recipes);
         renderFilters();
         renderRecipes();
         closeModal(elements.addModal);
         resetAddFlow();
       } catch (error) {
-        elements.recipeError.textContent = "Не удалось сохранить рецепт на сервере.";
+        elements.recipeError.textContent = error.message || "Не удалось сохранить рецепт на сервере.";
         console.warn("Ошибка сохранения рецепта:", error);
       }
     }
@@ -1196,6 +1409,18 @@
           return;
         }
 
+        const editButton = event.target.closest("[data-edit]");
+        if (editButton) {
+          openProtectedAction({ type: "edit", recipeId: editButton.dataset.edit });
+          return;
+        }
+
+        const deleteButton = event.target.closest("[data-delete]");
+        if (deleteButton) {
+          openProtectedAction({ type: "delete", recipeId: deleteButton.dataset.delete });
+          return;
+        }
+
         const card = event.target.closest(".recipe-card");
         if (card) {
           showRecipe(card.dataset.id);
@@ -1210,14 +1435,7 @@
         showRecipe(card.dataset.id);
       });
 
-      elements.authForm.addEventListener("submit", (event) => {
-        event.preventDefault();
-        if (elements.passwordInput.value === ACCESS_PASSWORD) {
-          activateAddForm();
-        } else {
-          elements.authError.textContent = "Неверный пароль. Попробуйте ещё раз.";
-        }
-      });
+      elements.authForm.addEventListener("submit", handleAuthSubmit);
 
       elements.recipeForm.addEventListener("submit", handleRecipeSubmit);
 
@@ -1262,6 +1480,7 @@
     function init() {
       // Загружаем сохранённые рецепты и строим интерфейс.
       updateBackendNotice();
+      updateAdminNotice();
       loadRecipes().then((recipes) => {
         state.recipes = recipes;
         state.loaded = true;

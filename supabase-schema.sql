@@ -23,3 +23,16 @@ create policy "Public insert recipes"
 on public.recipes
 for insert
 with check (true);
+
+drop policy if exists "Public update recipes" on public.recipes;
+create policy "Public update recipes"
+on public.recipes
+for update
+using (true)
+with check (true);
+
+drop policy if exists "Public delete recipes" on public.recipes;
+create policy "Public delete recipes"
+on public.recipes
+for delete
+using (true);
