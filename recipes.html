@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Мои рецепты</title>
+  <style>
+    :root {
+      --bg: #f5f1ea;
+      --surface: #ffffff;
+      --surface-alt: #fbfaf7;
+      --text: #2d2a26;
+      --muted: #7c7368;
+      --line: #e7dfd4;
+      --shadow: 0 12px 30px rgba(66, 54, 38, 0.08);
+      --shadow-hover: 0 16px 40px rgba(66, 54, 38, 0.12);
+      --accent: #7f8a63;
+      --accent-strong: #6a764d;
+      --accent-soft: #edf1e5;
+      --danger: #b4534c;
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+      --max: 1240px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(127, 138, 99, 0.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(180, 83, 76, 0.08), transparent 26%),
+        var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      width: min(100%, var(--max));
+      margin: 0 auto;
+      padding: 28px 20px 32px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(16px);
+      background: rgba(245, 241, 234, 0.82);
+      border-bottom: 1px solid rgba(231, 223, 212, 0.7);
+      margin: 0 -20px 28px;
+      padding: 18px 20px 16px;
+    }
+
+    .topbar-inner {
+      width: min(100%, var(--max));
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2vw + 1rem, 2.5rem);
+      letter-spacing: -0.04em;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      max-width: 60ch;
+    }
+
+    .add-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 18px;
+      background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 12px 24px rgba(106, 118, 77, 0.22);
+      transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+      white-space: nowrap;
+    }
+
+    .add-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 28px rgba(106, 118, 77, 0.26);
+    }
+
+    .add-btn:active {
+      transform: translateY(0);
+      filter: brightness(0.98);
+    }
+
+    .toolbar {
+      display: grid;
+      gap: 14px;
+    }
+
+    .search-wrap {
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 14px 18px 14px 48px;
+      background: rgba(255, 255, 255, 0.9);
+      outline: none;
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .search-input:focus {
+      border-color: rgba(127, 138, 99, 0.45);
+      box-shadow: 0 0 0 4px rgba(127, 138, 99, 0.12);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      font-size: 1rem;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .filter-btn {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.82);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 10px 14px;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .filter-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+
+    .filter-btn.active {
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      border-color: rgba(127, 138, 99, 0.28);
+      font-weight: 700;
+    }
+
+    .content {
+      padding-top: 6px;
+    }
+
+    .recipes-grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .recipe-card {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: var(--radius-xl);
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(231, 223, 212, 0.86);
+      box-shadow: var(--shadow);
+      transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+      min-height: 100%;
+    }
+
+    .recipe-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(127, 138, 99, 0.24);
+    }
+
+    .recipe-media {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(127, 138, 99, 0.88), rgba(180, 121, 76, 0.86)),
+        linear-gradient(180deg, #ddd, #bbb);
+    }
+
+    .recipe-media::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 35%, rgba(0, 0, 0, 0.2));
+    }
+
+    .recipe-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .placeholder {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: end start;
+      padding: 18px;
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.22), transparent 22%),
+        radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.16), transparent 20%),
+        linear-gradient(140deg, #8c9771 0%, #c48459 100%);
+    }
+
+    .card-body {
+      display: grid;
+      gap: 12px;
+      padding: 18px 18px 20px;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 1.15rem;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+    }
+
+    .category-badge {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .card-description {
+      margin: 0;
+      color: var(--muted);
+      min-height: 2.8em;
+    }
+
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .card-actions {
+      margin-top: auto;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .view-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 14px;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .view-btn:hover {
+      border-color: rgba(127, 138, 99, 0.35);
+      background: var(--surface-alt);
+      transform: translateY(-1px);
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      padding: 42px 20px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px dashed rgba(127, 138, 99, 0.25);
+      border-radius: var(--radius-xl);
+    }
+
+    .empty-state h2 {
+      margin: 0 0 8px;
+      color: var(--text);
+      font-size: clamp(1.2rem, 1vw + 1rem, 1.5rem);
+    }
+
+    .footer {
+      margin-top: 24px;
+      padding: 18px 0 6px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.95rem;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(34, 30, 24, 0.5);
+      z-index: 50;
+    }
+
+    .modal.open {
+      display: flex;
+    }
+
+    .modal-panel {
+      width: min(100%, 760px);
+      max-height: min(90vh, 980px);
+      overflow: auto;
+      border-radius: 28px;
+      background: var(--surface);
+      box-shadow: 0 30px 80px rgba(21, 17, 12, 0.32);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      position: relative;
+    }
+
+    .modal-panel.compact {
+      width: min(100%, 520px);
+    }
+
+    .modal-close {
+      position: absolute;
+      right: 14px;
+      top: 14px;
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.94);
+      font-size: 1.25rem;
+      line-height: 1;
+      color: var(--muted);
+      transition: transform 160ms ease, background 160ms ease;
+      z-index: 2;
+    }
+
+    .modal-close:hover {
+      transform: rotate(90deg);
+      background: #fff;
+    }
+
+    .modal-header {
+      padding: 26px 26px 0;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: clamp(1.4rem, 1vw + 1.2rem, 2rem);
+      letter-spacing: -0.03em;
+    }
+
+    .modal-subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+    }
+
+    .modal-content {
+      padding: 22px 26px 26px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .detail-hero {
+      border-radius: 22px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      background:
+        linear-gradient(135deg, rgba(127, 138, 99, 0.88), rgba(180, 121, 76, 0.86));
+      border: 1px solid rgba(231, 223, 212, 0.86);
+    }
+
+    .detail-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .detail-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+    }
+
+    .detail-block {
+      background: var(--surface-alt);
+      border: 1px solid rgba(231, 223, 212, 0.9);
+      border-radius: 20px;
+      padding: 18px;
+    }
+
+    .detail-block h3 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    .list-reset {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .list-reset li + li {
+      margin-top: 8px;
+    }
+
+    .auth-step,
+    .recipe-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 13px 14px;
+      background: #fff;
+      outline: none;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 118px;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: rgba(127, 138, 99, 0.45);
+      box-shadow: 0 0 0 4px rgba(127, 138, 99, 0.12);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      padding-top: 6px;
+    }
+
+    .btn-secondary,
+    .btn-primary {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 16px;
+      font-weight: 700;
+      transition: transform 160ms ease, filter 160ms ease, background 160ms ease;
+    }
+
+    .btn-secondary {
+      background: #ece6dd;
+      color: var(--text);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+      color: #fff;
+    }
+
+    .btn-secondary:hover,
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      filter: brightness(0.99);
+    }
+
+    .help-text {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin: 0;
+    }
+
+    .error-text {
+      margin: 0;
+      color: var(--danger);
+      font-weight: 600;
+      min-height: 1.4em;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1024px) {
+      .recipes-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .app {
+        padding: 18px 14px 24px;
+      }
+
+      .topbar {
+        margin: 0 -14px 22px;
+        padding: 16px 14px 14px;
+      }
+
+      .recipes-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .brand-row {
+        align-items: stretch;
+      }
+
+      .add-btn {
+        width: 100%;
+      }
+
+      .modal {
+        padding: 10px;
+      }
+
+      .modal-panel {
+        border-radius: 22px;
+      }
+
+      .modal-header,
+      .modal-content {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand-row">
+          <div class="brand">
+            <h1>Мои рецепты</h1>
+            <p>Удобная домашняя коллекция блюд: ищите, фильтруйте и сохраняйте всё в браузере.</p>
+          </div>
+          <button class="add-btn" id="addRecipeBtn" type="button">+ Добавить рецепт</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-wrap">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input
+              id="searchInput"
+              class="search-input"
+              type="search"
+              placeholder="Поиск по названию или ингредиентам"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="filters" id="categoryFilters" aria-label="Фильтры категорий"></div>
+          <p class="help-text hidden" id="backendNotice" style="margin:0;"></p>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <section>
+        <div class="recipes-grid" id="recipesGrid" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer class="footer">Готовьте с удовольствием!</footer>
+  </div>
+
+  <!-- Модальное окно просмотра рецепта -->
+  <div class="modal" id="recipeModal" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="recipeModalTitle">
+      <button class="modal-close" type="button" data-close="recipeModal" aria-label="Закрыть">×</button>
+      <div class="modal-header">
+        <p class="modal-subtitle" id="recipeModalCategory"></p>
+        <h2 class="modal-title" id="recipeModalTitle"></h2>
+      </div>
+      <div class="modal-content">
+        <div class="detail-hero" id="recipeModalHero"></div>
+        <div class="detail-grid">
+          <div class="detail-meta" id="recipeModalMeta"></div>
+          <div class="detail-block">
+            <h3>Описание</h3>
+            <p id="recipeModalDescription" class="help-text" style="margin:0;"></p>
+          </div>
+          <div class="detail-block">
+            <h3>Ингредиенты</h3>
+            <ul class="list-reset" id="recipeModalIngredients"></ul>
+          </div>
+          <div class="detail-block">
+            <h3>Шаги приготовления</h3>
+            <ol class="list-reset" id="recipeModalSteps"></ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно авторизации и добавления -->
+  <div class="modal" id="addModal" aria-hidden="true">
+    <div class="modal-panel compact" role="dialog" aria-modal="true" aria-labelledby="addModalTitle">
+      <button class="modal-close" type="button" data-close="addModal" aria-label="Закрыть">×</button>
+      <div class="modal-header">
+        <p class="modal-subtitle" id="addModalSubtitle">Доступ к добавлению защищён паролем</p>
+        <h2 class="modal-title" id="addModalTitle">Введите пароль</h2>
+      </div>
+
+      <div class="modal-content">
+        <form id="authForm" class="auth-step">
+          <div class="field">
+            <label for="passwordInput">Введите пароль</label>
+            <input id="passwordInput" type="password" inputmode="numeric" autocomplete="off" placeholder="Пароль" />
+          </div>
+          <p class="error-text" id="authError" aria-live="polite"></p>
+          <div class="form-actions">
+            <button class="btn-secondary" type="button" data-close="addModal">Отмена</button>
+            <button class="btn-primary" type="submit">Подтвердить</button>
+          </div>
+        </form>
+
+        <form id="recipeForm" class="recipe-form hidden">
+          <div class="field">
+            <label for="recipeName">Название рецепта</label>
+            <input id="recipeName" type="text" required maxlength="120" />
+          </div>
+
+          <div class="field">
+            <label for="recipeCategory">Категория</label>
+            <select id="recipeCategory" required>
+              <option>Завтрак</option>
+              <option>Обед</option>
+              <option>Ужин</option>
+              <option>Десерт</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="recipeDescription">Краткое описание</label>
+            <input id="recipeDescription" type="text" required maxlength="200" />
+          </div>
+
+          <div class="field">
+            <label for="recipeTime">Время приготовления</label>
+            <input id="recipeTime" type="text" required maxlength="40" placeholder="30 мин" />
+          </div>
+
+          <div class="field">
+            <label for="recipeIngredients">Ингредиенты</label>
+            <textarea id="recipeIngredients" required placeholder="Каждый ингредиент с новой строки"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="recipeSteps">Шаги приготовления</label>
+            <textarea id="recipeSteps" required placeholder="Каждый шаг с новой строки"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="recipePhoto">Фото</label>
+            <input id="recipePhoto" type="file" accept="image/*" />
+            <p class="help-text">Если фото не загружать, карточка покажет градиентный плейсхолдер.</p>
+          </div>
+
+          <p class="error-text" id="recipeError" aria-live="polite"></p>
+
+          <div class="form-actions">
+            <button class="btn-secondary" type="button" data-close="addModal">Отмена</button>
+            <button class="btn-primary" type="submit">Сохранить рецепт</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Ключ localStorage нужен только как запасной вариант для режима file://.
+    const STORAGE_KEY = "recipes";
+    const ACCESS_PASSWORD = "123";
+    const CATEGORIES = ["Все", "Завтрак", "Обед", "Ужин", "Десерт"];
+    // Укажите здесь адрес и anon key вашего Supabase-проекта.
+    const SUPABASE_URL = "https://twiuqkidgopihhznhjve.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3aXVxa2lkZ29waWhoem5oanZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MDY2MDgsImV4cCI6MjA5ODQ4MjYwOH0.e5BCsXrJSVCY9jCVtw73Wap0pS3NsbcMQECN7MYvlhw";
+    const SUPABASE_TABLE = "recipes";
+    const API_ENABLED = Boolean(
+      SUPABASE_URL &&
+      SUPABASE_ANON_KEY &&
+      !SUPABASE_URL.includes("YOUR-PROJECT") &&
+      !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY")
+    );
+    const API_URL = API_ENABLED
+      ? `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${SUPABASE_TABLE}`
+      : "";
+
+    const state = {
+      recipes: [],
+      search: "",
+      category: "Все",
+      activeRecipeId: null,
+      addMode: "auth",
+      loaded: false
+    };
+
+    const elements = {
+      recipesGrid: document.getElementById("recipesGrid"),
+      categoryFilters: document.getElementById("categoryFilters"),
+      searchInput: document.getElementById("searchInput"),
+      addRecipeBtn: document.getElementById("addRecipeBtn"),
+      recipeModal: document.getElementById("recipeModal"),
+      addModal: document.getElementById("addModal"),
+      recipeModalTitle: document.getElementById("recipeModalTitle"),
+      recipeModalCategory: document.getElementById("recipeModalCategory"),
+      recipeModalHero: document.getElementById("recipeModalHero"),
+      recipeModalMeta: document.getElementById("recipeModalMeta"),
+      recipeModalDescription: document.getElementById("recipeModalDescription"),
+      recipeModalIngredients: document.getElementById("recipeModalIngredients"),
+      recipeModalSteps: document.getElementById("recipeModalSteps"),
+      authForm: document.getElementById("authForm"),
+      authError: document.getElementById("authError"),
+      passwordInput: document.getElementById("passwordInput"),
+      recipeForm: document.getElementById("recipeForm"),
+      addModalTitle: document.getElementById("addModalTitle"),
+      addModalSubtitle: document.getElementById("addModalSubtitle"),
+      recipeError: document.getElementById("recipeError"),
+      recipeName: document.getElementById("recipeName"),
+      recipeCategory: document.getElementById("recipeCategory"),
+      recipeDescription: document.getElementById("recipeDescription"),
+      recipeTime: document.getElementById("recipeTime"),
+      recipeIngredients: document.getElementById("recipeIngredients"),
+      recipeSteps: document.getElementById("recipeSteps"),
+      recipePhoto: document.getElementById("recipePhoto"),
+      backendNotice: document.getElementById("backendNotice")
+    };
+
+    function supabaseHeaders(extraHeaders = {}) {
+      return {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        ...extraHeaders
+      };
+    }
+
+    function readLocalRecipes() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        console.warn("Не удалось прочитать recipes из localStorage:", error);
+        return [];
+      }
+    }
+
+    function saveLocalRecipes(recipes) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
+    }
+
+    function updateBackendNotice() {
+      if (API_ENABLED) {
+        elements.backendNotice.classList.add("hidden");
+        elements.backendNotice.textContent = "";
+        return;
+      }
+
+      elements.backendNotice.textContent = "Подключите Supabase URL и anon key в коде, чтобы рецепты были общими для всех посетителей.";
+      elements.backendNotice.classList.remove("hidden");
+    }
+
+    async function loadRecipes() {
+      if (!API_ENABLED) {
+        return readLocalRecipes();
+      }
+
+      try {
+        const response = await fetch(`${API_URL}?select=*&order=created_at.desc`, {
+          cache: "no-store",
+          headers: supabaseHeaders()
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const recipes = Array.isArray(data) ? data.map(normalizeRecipeRow) : [];
+        saveLocalRecipes(recipes);
+        return recipes;
+      } catch (error) {
+        console.warn("Не удалось загрузить рецепты с сервера, используем localStorage:", error);
+        return readLocalRecipes();
+      }
+    }
+
+    async function saveRecipe(recipe, currentRecipes) {
+      if (!API_ENABLED) {
+        const next = [recipe, ...currentRecipes];
+        saveLocalRecipes(next);
+        return next;
+      }
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: supabaseHeaders({
+          Prefer: "return=representation"
+        }),
+        body: JSON.stringify(denormalizeRecipeRow(recipe))
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return [recipe, ...currentRecipes];
+    }
+
+    function normalizeRecipeRow(row) {
+      return {
+        id: row.id,
+        title: row.title || "",
+        category: row.category || "Завтрак",
+        description: row.description || "",
+        time: row.time || "",
+        ingredients: Array.isArray(row.ingredients) ? row.ingredients : [],
+        steps: Array.isArray(row.steps) ? row.steps : [],
+        photoDataUrl: row.photo_data_url || row.photoDataUrl || "",
+        createdAt: row.created_at || row.createdAt || ""
+      };
+    }
+
+    function denormalizeRecipeRow(recipe) {
+      return {
+        id: recipe.id,
+        title: recipe.title,
+        category: recipe.category,
+        description: recipe.description,
+        time: recipe.time,
+        ingredients: recipe.ingredients,
+        steps: recipe.steps,
+        photo_data_url: recipe.photoDataUrl || "",
+        created_at: new Date().toISOString()
+      };
+    }
+
+    function normalize(text) {
+      return String(text || "").trim().toLowerCase();
+    }
+
+    function parseLines(value) {
+      return String(value || "")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    }
+
+    function makeId() {
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function categoryMatches(recipe) {
+      return state.category === "Все" || recipe.category === state.category;
+    }
+
+    function searchMatches(recipe) {
+      const query = normalize(state.search);
+      if (!query) return true;
+      const haystack = [
+        recipe.title,
+        recipe.description,
+        recipe.category,
+        recipe.time,
+        ...(recipe.ingredients || [])
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    }
+
+    function filteredRecipes() {
+      return state.recipes.filter((recipe) => categoryMatches(recipe) && searchMatches(recipe));
+    }
+
+    function createPlaceholderMarkup(title) {
+      const safeTitle = title ? title.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "Рецепт";
+      return `<div class="placeholder"><span>${safeTitle}</span></div>`;
+    }
+
+    function renderFilters() {
+      elements.categoryFilters.innerHTML = CATEGORIES.map((category) => {
+        const active = category === state.category ? "active" : "";
+        return `<button type="button" class="filter-btn ${active}" data-category="${category}">${category}</button>`;
+      }).join("");
+    }
+
+    function renderRecipes() {
+      if (!state.loaded) {
+        elements.recipesGrid.innerHTML = `
+          <div class="empty-state">
+            <h2>Загружаем рецепты...</h2>
+            <p>Подождите секунду, данные синхронизируются с общим хранилищем.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const recipes = filteredRecipes();
+
+      if (state.recipes.length === 0) {
+        elements.recipesGrid.innerHTML = `
+          <div class="empty-state">
+            <h2>Пока рецептов нет. Добавьте первый рецепт!</h2>
+            <p>Все рецепты сохраняются в вашем браузере и не теряются после перезагрузки страницы.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (recipes.length === 0) {
+        elements.recipesGrid.innerHTML = `
+          <div class="empty-state">
+            <h2>Рецепты не найдены</h2>
+            <p>Попробуйте изменить запрос поиска или выбрать другую категорию.</p>
+          </div>
+        `;
+        return;
+      }
+
+      elements.recipesGrid.innerHTML = recipes.map((recipe) => {
+        const media = recipe.photoDataUrl
+          ? `<img class="recipe-image" src="${recipe.photoDataUrl}" alt="${recipe.title}">`
+          : createPlaceholderMarkup(recipe.title);
+
+        return `
+          <article class="recipe-card" tabindex="0" role="button" aria-label="Открыть рецепт ${recipe.title}" data-id="${recipe.id}">
+            <div class="recipe-media">${media}</div>
+            <div class="card-body">
+              <div class="card-top">
+                <h2 class="card-title">${escapeHtml(recipe.title)}</h2>
+                <span class="category-badge">${escapeHtml(recipe.category)}</span>
+              </div>
+              <p class="card-description">${escapeHtml(recipe.description)}</p>
+              <div class="card-meta">
+                <span>⏱ ${escapeHtml(recipe.time)}</span>
+                <span>• ${recipe.ingredients.length} ингредиентов</span>
+              </div>
+              <div class="card-actions">
+                <button type="button" class="view-btn" data-view="${recipe.id}">Смотреть</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function openModal(modal) {
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+      syncBodyScrollLock();
+    }
+
+    function closeModal(modal) {
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+      syncBodyScrollLock();
+    }
+
+    function syncBodyScrollLock() {
+      const anyModalOpen = document.querySelector(".modal.open");
+      document.body.style.overflow = anyModalOpen ? "hidden" : "";
+    }
+
+    function resetAddFlow() {
+      // Возвращаем модальное окно добавления в исходное состояние.
+      state.addMode = "auth";
+      elements.authForm.classList.remove("hidden");
+      elements.recipeForm.classList.add("hidden");
+      elements.addModalTitle.textContent = "Введите пароль";
+      elements.addModalSubtitle.textContent = "Доступ к добавлению защищён паролем";
+      elements.authError.textContent = "";
+      elements.recipeError.textContent = "";
+      elements.passwordInput.value = "";
+      elements.recipeForm.reset();
+      elements.recipePhoto.value = "";
+    }
+
+    function showRecipe(recipeId) {
+      const recipe = state.recipes.find((item) => item.id === recipeId);
+      if (!recipe) return;
+
+      // Заполняем модальное окно просмотра выбранным рецептом.
+      state.activeRecipeId = recipeId;
+      elements.recipeModalTitle.textContent = recipe.title;
+      elements.recipeModalCategory.textContent = recipe.category;
+      elements.recipeModalMeta.innerHTML = `
+        <span>⏱ ${escapeHtml(recipe.time)}</span>
+        <span>• ${recipe.ingredients.length} ингредиентов</span>
+      `;
+      elements.recipeModalDescription.textContent = recipe.description;
+      elements.recipeModalIngredients.innerHTML = recipe.ingredients
+        .map((ingredient) => `<li>${escapeHtml(ingredient)}</li>`)
+        .join("");
+      elements.recipeModalSteps.innerHTML = recipe.steps
+        .map((step) => `<li>${escapeHtml(step)}</li>`)
+        .join("");
+
+      if (recipe.photoDataUrl) {
+        elements.recipeModalHero.innerHTML = `<img src="${recipe.photoDataUrl}" alt="${escapeHtml(recipe.title)}">`;
+      } else {
+        elements.recipeModalHero.innerHTML = createPlaceholderMarkup(recipe.title);
+      }
+
+      openModal(elements.recipeModal);
+    }
+
+    function openAddModal() {
+      // Перед открытием формы всегда показываем экран пароля.
+      resetAddFlow();
+      openModal(elements.addModal);
+      setTimeout(() => elements.passwordInput.focus(), 0);
+    }
+
+    async function readFileAsDataUrl(file) {
+      // Фото сохраняем как data URL, чтобы можно было отправить его вместе с рецептом.
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error || new Error("Не удалось прочитать файл"));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function activateAddForm() {
+      state.addMode = "form";
+      elements.authForm.classList.add("hidden");
+      elements.recipeForm.classList.remove("hidden");
+      elements.addModalTitle.textContent = "Новый рецепт";
+      elements.addModalSubtitle.textContent = "Заполните поля и сохраните карточку в общем хранилище";
+      elements.recipeError.textContent = "";
+      setTimeout(() => elements.recipeName.focus(), 0);
+    }
+
+    async function handleRecipeSubmit(event) {
+      event.preventDefault();
+      elements.recipeError.textContent = "";
+
+      // Считываем данные формы и превращаем многострочные поля в массивы.
+      const title = elements.recipeName.value.trim();
+      const category = elements.recipeCategory.value;
+      const description = elements.recipeDescription.value.trim();
+      const time = elements.recipeTime.value.trim();
+      const ingredients = parseLines(elements.recipeIngredients.value);
+      const steps = parseLines(elements.recipeSteps.value);
+      const file = elements.recipePhoto.files && elements.recipePhoto.files[0];
+
+      if (!ingredients.length || !steps.length) {
+        elements.recipeError.textContent = "Добавьте хотя бы один ингредиент и один шаг.";
+        return;
+      }
+
+      let photoDataUrl = "";
+      if (file) {
+        if (!file.type.startsWith("image/")) {
+          elements.recipeError.textContent = "Выберите файл изображения.";
+          return;
+        }
+
+        try {
+          photoDataUrl = await readFileAsDataUrl(file);
+        } catch (error) {
+          elements.recipeError.textContent = "Не удалось загрузить фото.";
+          return;
+        }
+      }
+
+      const recipe = {
+        id: makeId(),
+        title,
+        category,
+        description,
+        time,
+        ingredients,
+        steps,
+        photoDataUrl
+      };
+
+      const nextRecipes = [recipe, ...state.recipes];
+
+      try {
+        const savedRecipes = await saveRecipe(recipe, state.recipes);
+        state.recipes = savedRecipes || nextRecipes;
+        saveLocalRecipes(state.recipes);
+        renderFilters();
+        renderRecipes();
+        closeModal(elements.addModal);
+        resetAddFlow();
+      } catch (error) {
+        elements.recipeError.textContent = "Не удалось сохранить рецепт на сервере.";
+        console.warn("Ошибка сохранения рецепта:", error);
+      }
+    }
+
+    function bindEvents() {
+      // Фильтр по категориям.
+      elements.categoryFilters.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-category]");
+        if (!button) return;
+        state.category = button.dataset.category;
+        renderFilters();
+        renderRecipes();
+      });
+
+      // Поиск работает сразу по мере ввода.
+      elements.searchInput.addEventListener("input", (event) => {
+        state.search = event.target.value;
+        renderRecipes();
+      });
+
+      elements.addRecipeBtn.addEventListener("click", openAddModal);
+
+      elements.recipesGrid.addEventListener("click", (event) => {
+        const viewButton = event.target.closest("[data-view]");
+        if (viewButton) {
+          showRecipe(viewButton.dataset.view);
+          return;
+        }
+
+        const card = event.target.closest(".recipe-card");
+        if (card) {
+          showRecipe(card.dataset.id);
+        }
+      });
+
+      elements.recipesGrid.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const card = event.target.closest(".recipe-card");
+        if (!card) return;
+        event.preventDefault();
+        showRecipe(card.dataset.id);
+      });
+
+      elements.authForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (elements.passwordInput.value === ACCESS_PASSWORD) {
+          activateAddForm();
+        } else {
+          elements.authError.textContent = "Неверный пароль. Попробуйте ещё раз.";
+        }
+      });
+
+      elements.recipeForm.addEventListener("submit", handleRecipeSubmit);
+
+      // Кнопка закрытия у модального окна.
+      document.addEventListener("click", (event) => {
+        const closeBtn = event.target.closest("[data-close]");
+        if (closeBtn) {
+          const modalId = closeBtn.dataset.close;
+          closeModal(document.getElementById(modalId));
+          if (modalId === "addModal") {
+            resetAddFlow();
+          }
+        }
+      });
+
+      // Закрытие по Escape.
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          if (elements.recipeModal.classList.contains("open")) {
+            closeModal(elements.recipeModal);
+          }
+          if (elements.addModal.classList.contains("open")) {
+            closeModal(elements.addModal);
+            resetAddFlow();
+          }
+        }
+      });
+
+      // Клик по затемнённому фону закрывает модалку.
+      document.querySelectorAll(".modal").forEach((modal) => {
+        modal.addEventListener("click", (event) => {
+          if (event.target === modal) {
+            closeModal(modal);
+            if (modal.id === "addModal") {
+              resetAddFlow();
+            }
+          }
+        });
+      });
+    }
+
+    function init() {
+      // Загружаем сохранённые рецепты и строим интерфейс.
+      updateBackendNotice();
+      loadRecipes().then((recipes) => {
+        state.recipes = recipes;
+        state.loaded = true;
+        renderFilters();
+        renderRecipes();
+      });
+      renderFilters();
+      renderRecipes();
+      bindEvents();
+    }
+
+    init();
+  </script>
+</body>
+</html>
